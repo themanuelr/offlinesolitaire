@@ -1,0 +1,211 @@
+:root {
+  --felt: #0b6b43;
+  --felt-dark: #064d30;
+  --bar: rgba(0, 0, 0, 0.28);
+  --ink: #fff;
+  --red: #d01c2b;
+  --black: #1b1b1f;
+  --card: #fdfdfb;
+  --back1: #1d4fa3;
+  --back2: #163d80;
+  --cw: 80px;
+  --ch: 112px;
+  --hl: #ffd54a;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+html, body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  color: var(--ink);
+  background: radial-gradient(ellipse at 50% 30%, var(--felt) 0%, var(--felt-dark) 100%);
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: none;
+}
+
+body { display: flex; flex-direction: column; }
+
+#bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: max(6px, env(safe-area-inset-top)) 12px 6px;
+  background: var(--bar);
+  flex: none;
+}
+.group { display: flex; gap: 8px; }
+#info { display: flex; gap: 18px; font-size: 15px; opacity: 0.95; white-space: nowrap; overflow: hidden; }
+#info b { font-variant-numeric: tabular-nums; }
+
+.btn {
+  font: inherit;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--ink);
+  background: rgba(255, 255, 255, 0.14);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 10px;
+  min-height: 42px;
+  min-width: 48px;
+  padding: 0 16px;
+  cursor: pointer;
+}
+.btn:active { background: rgba(255, 255, 255, 0.28); }
+.btn:disabled { opacity: 0.4; }
+.btn.wide { width: 100%; margin-top: 10px; }
+.btn.primary { background: #f2c94c; color: #222; border-color: #f2c94c; }
+
+#board { position: relative; flex: 1; min-height: 0; }
+
+.slot {
+  position: absolute;
+  width: var(--cw);
+  height: var(--ch);
+  border-radius: calc(var(--cw) * 0.08);
+  border: 2px solid rgba(255, 255, 255, 0.22);
+  background: rgba(0, 0, 0, 0.08);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(255, 255, 255, 0.28);
+  font-size: calc(var(--cw) * 0.42);
+}
+.slot.stock::after { content: "↻"; }
+.slot.stock.empty-final::after { content: ""; }
+
+.card {
+  position: absolute;
+  width: var(--cw);
+  height: var(--ch);
+  border-radius: calc(var(--cw) * 0.08);
+  background: var(--card);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+  transition: left 0.16s ease-out, top 0.16s ease-out;
+  will-change: left, top;
+  overflow: hidden;
+}
+.card.dragging { transition: none; box-shadow: 0 8px 18px rgba(0, 0, 0, 0.45); }
+.card.red { color: var(--red); }
+.card.black { color: var(--black); }
+
+.card .idx {
+  position: absolute;
+  top: calc(var(--cw) * 0.03);
+  left: calc(var(--cw) * 0.07);
+  font-weight: 700;
+  font-size: calc(var(--cw) * 0.26);
+  line-height: 1;
+  letter-spacing: -0.06em;
+}
+.card .idx span { display: block; font-size: 0.78em; font-weight: 400; margin-top: 0.08em; text-align: center; }
+.card .s1 {
+  position: absolute;
+  top: calc(var(--cw) * 0.035);
+  right: calc(var(--cw) * 0.07);
+  font-size: calc(var(--cw) * 0.24);
+  line-height: 1;
+}
+.card .pip {
+  position: absolute;
+  left: 0; right: 0;
+  bottom: calc(var(--ch) * 0.1);
+  text-align: center;
+  font-size: calc(var(--cw) * 0.56);
+  line-height: 1;
+}
+.card .face {
+  position: absolute;
+  left: 0; right: 0;
+  bottom: calc(var(--ch) * 0.1);
+  text-align: center;
+  font-family: Georgia, "Times New Roman", serif;
+  font-weight: 700;
+  font-size: calc(var(--cw) * 0.5);
+  line-height: 1;
+}
+.card .face small { font-size: 0.7em; }
+
+.card.down { background: var(--back1); border: calc(var(--cw) * 0.05) solid #fff; }
+.card.down::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    repeating-linear-gradient(45deg, transparent 0 5px, rgba(255, 255, 255, 0.13) 5px 7px),
+    repeating-linear-gradient(-45deg, transparent 0 5px, rgba(255, 255, 255, 0.13) 5px 7px),
+    var(--back2);
+  border-radius: calc(var(--cw) * 0.04);
+}
+.card.down > * { display: none; }
+
+.card.hint, .slot.hint { outline: 4px solid var(--hl); outline-offset: -2px; box-shadow: 0 0 16px var(--hl); }
+.card.shake { animation: shake 0.28s; }
+@keyframes shake {
+  25% { transform: translateX(-5px); }
+  75% { transform: translateX(5px); }
+}
+
+#toast {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  transform: translateX(-50%) translateY(20px);
+  background: rgba(0, 0, 0, 0.82);
+  color: #fff;
+  padding: 12px 18px;
+  border-radius: 12px;
+  font-size: 16px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s, transform 0.2s;
+  max-width: calc(100% - 32px);
+  text-align: center;
+}
+#toast.show { opacity: 1; transform: translateX(-50%); }
+
+dialog {
+  border: none;
+  border-radius: 16px;
+  padding: 22px;
+  width: min(380px, calc(100% - 32px));
+  background: #16241d;
+  color: #fff;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+}
+dialog::backdrop { background: rgba(0, 0, 0, 0.5); }
+dialog h2 { margin: 0 0 6px; font-size: 22px; }
+.small { font-size: 13px; opacity: 0.7; margin: 8px 0 0; }
+.deal-label { opacity: 0.75; margin: 0 0 14px; }
+.menu-section { margin: 8px 0 14px; }
+.label { display: block; font-weight: 600; margin-bottom: 8px; }
+.seg { display: flex; border-radius: 10px; overflow: hidden; border: 1px solid rgba(255, 255, 255, 0.3); }
+.seg button {
+  flex: 1; font: inherit; font-size: 16px; min-height: 44px; border: none;
+  background: transparent; color: #fff; cursor: pointer;
+}
+.seg button.on { background: #f2c94c; color: #222; font-weight: 700; }
+.menu-actions { margin-bottom: 6px; }
+table.stats { width: 100%; border-collapse: collapse; margin: 10px 0; font-variant-numeric: tabular-nums; }
+table.stats th, table.stats td { padding: 6px 4px; text-align: right; border-bottom: 1px solid rgba(255, 255, 255, 0.12); }
+table.stats th:first-child, table.stats td:first-child { text-align: left; }
+
+@media (max-width: 700px) {
+  #info { gap: 10px; font-size: 13px; }
+  #info-mode { display: none; }
+  .btn { padding: 0 10px; font-size: 15px; }
+}
+@media (max-width: 480px) {
+  #info span:nth-child(4) { display: none; }
+}
+
+@keyframes fly {
+  to { transform: translate(var(--dx), var(--dy)) rotate(var(--rot)); opacity: 0; }
+}
+.card.fly { animation: fly 1.6s ease-in forwards; transition: none; }

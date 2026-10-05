@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <title>Solitaire</title>
+  <meta name="description" content="Klondike solitaire that works offline. Every deal is solvable.">
+  <meta name="theme-color" content="#0b5d3b">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header id="bar">
+    <div class="group">
+      <button id="btn-new" class="btn">New</button>
+      <button id="btn-menu" class="btn" aria-label="Menu">☰</button>
+    </div>
+    <div id="info">
+      <span id="info-mode">Draw 3</span>
+      <span><b id="info-time">0:00</b></span>
+      <span>Moves <b id="info-moves">0</b></span>
+      <span>Score <b id="info-score">0</b></span>
+    </div>
+    <div class="group">
+      <button id="btn-hint" class="btn">Hint</button>
+      <button id="btn-undo" class="btn">Undo</button>
+    </div>
+  </header>
+
+  <main id="board" aria-label="Solitaire table"></main>
+
+  <div id="toast" role="status" aria-live="polite"></div>
+
+  <dialog id="menu">
+    <h2>Solitaire</h2>
+    <p class="deal-label" id="menu-deal"></p>
+    <div class="menu-section">
+      <span class="label">Draw</span>
+      <div class="seg" role="radiogroup">
+        <button data-draw="3">3 cards</button>
+        <button data-draw="1">1 card</button>
+      </div>
+      <p class="small">Changing this starts a new game.</p>
+    </div>
+    <div class="menu-actions">
+      <button id="btn-restart" class="btn wide">Restart this deal</button>
+      <button id="btn-stats" class="btn wide">Statistics</button>
+    </div>
+    <p class="small">Every deal is checked by a solver, so every game can be won.</p>
+    <form method="dialog"><button class="btn wide primary">Close</button></form>
+  </dialog>
+
+  <dialog id="stats">
+    <h2>Statistics</h2>
+    <div id="stats-body"></div>
+    <form method="dialog"><button class="btn wide primary">Close</button></form>
+  </dialog>
+
+  <dialog id="win">
+    <h2>You won! 🎉</h2>
+    <p id="win-text"></p>
+    <form method="dialog"><button id="btn-win-new" class="btn wide primary" value="new">New game</button></form>
+  </dialog>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
