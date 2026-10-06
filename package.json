@@ -4,6 +4,6 @@
   "type": "module",
   "scripts": {
     "deals": "node tools/gen-deals.js",
-    "test": "node tools/verify-deals.js && node tests/e2e.js"
+    "test": "node tools/verify-deals.js && node tests/rewind.test.js && node tests/e2e.js"
   }
 }

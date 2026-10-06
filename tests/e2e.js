@@ -24,6 +24,7 @@ check(s.drawCount === 3, 'Draw 3 is the default mode');
 check(s.tableau.every((p, i) => p.length === i + 1) && s.stock.length === 24, 'standard Klondike deal');
 
 // Tap the stock: three cards go to the waste.
+await page.waitForTimeout(600); // let the deal animation settle
 const stockBox = await page.locator('.slot.stock').boundingBox();
 await page.mouse.click(stockBox.x + stockBox.width / 2, stockBox.y + stockBox.height / 2);
 s = await g();
@@ -34,6 +35,14 @@ if (SHOTS) await page.screenshot({ path: `${SHOTS}/after-draw.png` });
 await page.click('#btn-undo');
 s = await g();
 check(s.waste.length === 0 && s.stock.length === 24, 'undo restores the stock');
+
+// Rewinding from a winnable position undoes just one move.
+await page.evaluate(() => { window.__solitaire.draw(); window.__solitaire.draw(); });
+await page.evaluate(() => window.__solitaire.rewind());
+s = await g();
+check(s.waste.length === 3 && s.stock.length === 21, 'rewind goes back one move, not to the start');
+await page.click('#btn-undo');
+await page.waitForTimeout(3200); // let the rewind message clear
 
 // Drag a card with the mouse to a legal tableau spot, if one exists in this deal.
 async function findTableauMove() {

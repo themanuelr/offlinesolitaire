@@ -3,6 +3,7 @@ import {
   suitOf, rankOf, isRed, SUITS, RANKS, mulberry32,
 } from './engine.js';
 import { DEALS } from './deals.js';
+import { findLastWinnable } from './rewind.js';
 
 const $ = (id) => document.getElementById(id);
 const board = $('board');
@@ -339,23 +340,23 @@ function offerRewind() {
   dlg.addEventListener('close', () => { if (dlg.returnValue === 'back') rewind(); }, { once: true });
 }
 
-// Once a position can't be won, no later one can, so the history splits into a
-// winnable start and a lost end. Binary search for the last winnable snapshot.
+// Undo back to the most recent position that can still be won (see rewind.js).
 async function rewind() {
   if (busy) return;
   busy = true;
   toast('Looking for the last winnable position…', 60000);
-  let lo = -1, hi = history.length; // history[lo] winnable (-1: none found yet), history[hi] lost
-  while (hi - lo > 1) {
-    const mid = (lo + hi) >> 1;
-    const r = await askSolver(150000, JSON.parse(history[mid]));
-    if (r.solved) lo = mid; else hi = mid;
-  }
+  const check = async (snap) => {
+    const state = JSON.parse(snap);
+    const r = await askSolver(150000, state);
+    return r.solved || r.complete ? r : askSolver(500000, state);
+  };
+  const found = await findLastWinnable(history, check);
   busy = false;
-  if (lo < 0) return toast('Could not find a winnable position. Try Restart from the menu.', 3500);
-  const back = history.length - lo;
-  restoreHistory(lo);
-  toast(`Went back ${back} move${back === 1 ? '' : 's'}. This position can still be won.`, 3000);
+  if (!found) return toast('Could not find a winnable position. Try Restart from the menu.', 3500);
+  const back = history.length - found.index;
+  restoreHistory(found.index);
+  const moves = `Went back ${back} move${back === 1 ? '' : 's'}.`;
+  toast(found.sure ? `${moves} This position can still be won.` : `${moves} This position may still be won.`, 3000);
 }
 
 function showHint(m) {
@@ -736,7 +737,7 @@ startTimer();
 // Expose a tiny API for automated tests.
 window.__solitaire = {
   get game() { return game; },
-  draw, doMove, newGame, undo, hint, autoDestination,
+  draw, doMove, newGame, undo, hint, rewind, autoDestination,
   playSolution: async () => { const r = await askSolver(400000); if (r.solved) await playPath(r.path); return r.solved; },
 };
 
