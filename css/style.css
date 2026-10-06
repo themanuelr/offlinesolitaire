@@ -178,8 +178,6 @@ body { display: flex; flex-direction: column; }
   background: rgba(255, 255, 255, 0.12);
 }
 .card.down > * { display: none; }
-.card.flip { animation: flip 0.14s ease-out; }
-@keyframes flip { from { transform: scaleX(0.05); } to { transform: scaleX(1); } }
 
 .card.hint, .slot.hint { outline: 4px solid var(--hl); outline-offset: -2px; box-shadow: 0 0 16px var(--hl); }
 .card.shake { animation: shake 0.28s; }

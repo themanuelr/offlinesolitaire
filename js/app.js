@@ -462,31 +462,23 @@ function pileOffsets(pile) {
   return { down, up };
 }
 
-// A card turning face up waits a moment, then flips, so the reveal follows the move.
-const FLIP_DELAY = 120;
+// A card on the move rides above everything until it lands, then takes its real stacking order.
+const MOVE_MS = 180;
 
 function place(el, x, y, z, up, instant) {
-  el.style.left = Math.round(x) + 'px'; // whole pixels keep card edges and text crisp
-  el.style.top = Math.round(y) + 'px';
-  el.style.zIndex = z;
-  if (!up) {
-    clearTimeout(el.flipTimer);
-    el.flipTimer = null;
-    el.classList.add('down');
-  } else if (instant) {
-    clearTimeout(el.flipTimer);
-    el.flipTimer = null;
-    el.classList.remove('down');
-  } else if (el.classList.contains('down') && !el.flipTimer) {
-    el.flipTimer = setTimeout(() => {
-      el.flipTimer = null;
-      el.classList.remove('down');
-      el.classList.remove('flip');
-      void el.offsetWidth;
-      el.classList.add('flip');
-      setTimeout(() => el.classList.remove('flip'), 200);
-    }, FLIP_DELAY);
+  const left = Math.round(x) + 'px', top = Math.round(y) + 'px'; // whole pixels keep edges and text crisp
+  const moving = !instant && (el.style.left !== left || el.style.top !== top) && el.style.left !== '';
+  el.style.left = left;
+  el.style.top = top;
+  clearTimeout(el.landTimer);
+  if (moving || (el.landTimer && !instant)) {
+    if (moving) el.style.zIndex = 1000 + z;
+    el.landTimer = setTimeout(() => { el.style.zIndex = z; el.landTimer = null; }, MOVE_MS);
+  } else {
+    el.style.zIndex = z;
+    el.landTimer = null;
   }
+  el.classList.toggle('down', !up);
 }
 
 function render(fresh = false) {
@@ -503,7 +495,7 @@ function render(fresh = false) {
   slotEls.stock.classList.toggle('empty-final', !game.stock.length && !game.waste.length);
 
   // Stock.
-  game.stock.forEach((c, i) => place(cardEls.get(c), colX(0), top, 10 + i, false));
+  game.stock.forEach((c, i) => place(cardEls.get(c), colX(0), top, 10 + i, false, fresh));
 
   // Waste: the last drawn cards fan out to the right.
   const fan = Math.min(game.wasteFan, game.waste.length);
