@@ -9,9 +9,16 @@
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <link rel="preload" href="fonts/inter.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <symbol id="suit-0" viewBox="0 0 100 100"><path d="M50 3C62 22 95 38 95 61C95 75 84 83 72 83C64 83 57 79 54 72C55 83 59 91 68 97H32C41 91 45 83 46 72C43 79 36 83 28 83C16 83 5 75 5 61C5 38 38 22 50 3Z"/></symbol>
+    <symbol id="suit-1" viewBox="0 0 100 100"><path d="M50 94C20 70 4 54 4 32C4 17 15 6 29 6C39 6 46 12 50 20C54 12 61 6 71 6C85 6 96 17 96 32C96 54 80 70 50 94Z"/></symbol>
+    <symbol id="suit-2" viewBox="0 0 100 100"><path d="M50 2Q67 28 90 50Q67 72 50 98Q33 72 10 50Q33 28 50 2Z"/></symbol>
+    <symbol id="suit-3" viewBox="0 0 100 100"><circle cx="50" cy="27" r="22"/><circle cx="26" cy="59" r="22"/><circle cx="74" cy="59" r="22"/><circle cx="50" cy="52" r="12"/><path d="M45 55H55C55 76 60 88 69 97H31C40 88 45 76 45 55Z"/></symbol>
+  </svg>
   <header id="bar">
     <div class="group">
       <button id="btn-new" class="btn">New</button>
@@ -62,6 +69,15 @@
     <h2>You won! 🎉</h2>
     <p id="win-text"></p>
     <form method="dialog"><button id="btn-win-new" class="btn wide primary" value="new">New game</button></form>
+  </dialog>
+
+  <dialog id="stuck">
+    <h2>No way to win from here</h2>
+    <p>Go back to the last position where this game can still be won?</p>
+    <form method="dialog">
+      <button class="btn wide primary" value="back">Go back</button>
+      <button class="btn wide" value="stay">Keep playing</button>
+    </form>
   </dialog>
 
   <script type="module" src="js/app.js"></script>

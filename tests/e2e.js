@@ -66,6 +66,22 @@ if (mv) {
   check(s.tableau[mv.to].some((x) => x.c === mv.card), 'dragging a card onto a legal pile moves it');
 } else check(false, 'found a deal with a tableau move to drag');
 
+// Messages show above the cards, even over a long pile.
+await page.evaluate(() => {
+  const t = document.getElementById('toast');
+  const card = document.querySelector(`.card[data-card="${window.__solitaire.game.tableau[3].at(-1).c}"]`).getBoundingClientRect();
+  t.textContent = 'test'; t.classList.add('show'); t.style.pointerEvents = 'auto';
+  t.style.bottom = `${innerHeight - card.bottom + card.height / 3}px`; // sit on top of a tableau card
+});
+await page.waitForTimeout(300);
+const onTop = await page.evaluate(() => {
+  const r = document.getElementById('toast').getBoundingClientRect();
+  const el = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2);
+  document.getElementById('toast').style.cssText = '';
+  return el && el.id === 'toast';
+});
+check(onTop, 'messages appear above the cards');
+
 // Hint highlights something.
 await page.click('#btn-hint');
 await page.waitForSelector('.hint', { timeout: 8000 }).then(() => check(true, 'hint highlights a move'), () => check(false, 'hint highlights a move'));

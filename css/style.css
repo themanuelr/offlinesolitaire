@@ -1,3 +1,10 @@
+@font-face {
+  font-family: "Inter";
+  src: url("../fonts/inter.woff2") format("woff2");
+  font-weight: 100 900;
+  font-display: block;
+}
+
 :root {
   --felt: #0b6b43;
   --felt-dark: #064d30;
@@ -6,8 +13,8 @@
   --red: #d01c2b;
   --black: #1b1b1f;
   --card: #fdfdfb;
-  --back1: #1d4fa3;
-  --back2: #163d80;
+  --back1: #c8243a;
+  --back2: #8f1124;
   --cw: 80px;
   --ch: 112px;
   --hl: #ffd54a;
@@ -21,7 +28,7 @@ html, body {
   height: 100%;
   overflow: hidden;
   overscroll-behavior: none;
-  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   color: var(--ink);
   background: radial-gradient(ellipse at 50% 30%, var(--felt) 0%, var(--felt-dark) 100%);
   user-select: none;
@@ -84,66 +91,95 @@ body { display: flex; flex-direction: column; }
   position: absolute;
   width: var(--cw);
   height: var(--ch);
-  border-radius: calc(var(--cw) * 0.08);
+  border-radius: calc(var(--cw) * 0.07);
   background: var(--card);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(0, 0, 0, 0.22);
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.25), 0 2px 4px rgba(0, 0, 0, 0.18);
   transition: left 0.16s ease-out, top 0.16s ease-out;
-  will-change: left, top;
   overflow: hidden;
+  font-family: "Inter", system-ui, sans-serif;
+  font-feature-settings: "tnum" 0, "cv08" 1;
 }
-.card.dragging { transition: none; box-shadow: 0 8px 18px rgba(0, 0, 0, 0.45); }
+.card.dragging { transition: none; box-shadow: 0 10px 22px rgba(0, 0, 0, 0.4); }
 .card.red { color: var(--red); }
 .card.black { color: var(--black); }
+.card svg { display: block; fill: currentColor; }
 
 .card .idx {
   position: absolute;
-  top: calc(var(--cw) * 0.03);
+  top: calc(var(--cw) * 0.045);
   left: calc(var(--cw) * 0.07);
   font-weight: 700;
-  font-size: calc(var(--cw) * 0.26);
+  font-size: calc(var(--cw) * 0.28);
   line-height: 1;
-  letter-spacing: -0.06em;
+  letter-spacing: -0.03em;
 }
-.card .idx span { display: block; font-size: 0.78em; font-weight: 400; margin-top: 0.08em; text-align: center; }
+.card .idx.ten { letter-spacing: -0.08em; left: calc(var(--cw) * 0.04); }
 .card .s1 {
   position: absolute;
-  top: calc(var(--cw) * 0.035);
+  top: calc(var(--cw) * 0.06);
   right: calc(var(--cw) * 0.07);
-  font-size: calc(var(--cw) * 0.24);
-  line-height: 1;
+  width: calc(var(--cw) * 0.22);
+  height: calc(var(--cw) * 0.22);
 }
 .card .pip {
   position: absolute;
-  left: 0; right: 0;
-  bottom: calc(var(--ch) * 0.1);
-  text-align: center;
-  font-size: calc(var(--cw) * 0.56);
-  line-height: 1;
+  left: 50%;
+  bottom: calc(var(--ch) * 0.13);
+  width: calc(var(--cw) * 0.46);
+  height: calc(var(--cw) * 0.46);
+  transform: translateX(-50%);
 }
 .card .face {
   position: absolute;
-  left: 0; right: 0;
-  bottom: calc(var(--ch) * 0.1);
-  text-align: center;
-  font-family: Georgia, "Times New Roman", serif;
-  font-weight: 700;
-  font-size: calc(var(--cw) * 0.5);
+  left: calc(var(--cw) * 0.12);
+  right: calc(var(--cw) * 0.12);
+  top: calc(var(--ch) * 0.3);
+  bottom: calc(var(--cw) * 0.12);
+  border-radius: calc(var(--cw) * 0.06);
+  border: 1.5px solid currentColor;
+  background: color-mix(in srgb, currentColor 9%, #fff);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: calc(var(--cw) * 0.04);
+}
+.card .face b {
+  font-weight: 800;
+  font-size: calc(var(--cw) * 0.38);
   line-height: 1;
 }
-.card .face small { font-size: 0.7em; }
+.card .face svg { width: calc(var(--cw) * 0.22); height: calc(var(--cw) * 0.22); }
 
-.card.down { background: var(--back1); border: calc(var(--cw) * 0.05) solid #fff; }
+/* Card back: deep red with a fine diamond lattice and a light inner frame. */
+.card.down {
+  border-color: rgba(0, 0, 0, 0.35);
+  background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12'%3E%3Cpath d='M6 0L12 6L6 12L0 6Z' fill='none' stroke='%23ffffff' stroke-opacity='0.16' stroke-width='1'/%3E%3Ccircle cx='6' cy='6' r='1.2' fill='%23ffffff' fill-opacity='0.22'/%3E%3C/svg%3E") center / 12px 12px,
+    radial-gradient(ellipse at 50% 35%, var(--back1) 0%, var(--back2) 100%);
+}
 .card.down::before {
   content: "";
   position: absolute;
-  inset: 0;
-  background:
-    repeating-linear-gradient(45deg, transparent 0 5px, rgba(255, 255, 255, 0.13) 5px 7px),
-    repeating-linear-gradient(-45deg, transparent 0 5px, rgba(255, 255, 255, 0.13) 5px 7px),
-    var(--back2);
+  inset: calc(var(--cw) * 0.06);
+  border: 1.5px solid rgba(255, 255, 255, 0.55);
   border-radius: calc(var(--cw) * 0.04);
 }
+.card.down::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: calc(var(--cw) * 0.3);
+  height: calc(var(--cw) * 0.3);
+  transform: translate(-50%, -50%) rotate(45deg);
+  border: 1.5px solid rgba(255, 255, 255, 0.6);
+  background: rgba(255, 255, 255, 0.12);
+}
 .card.down > * { display: none; }
+.card.flip { animation: flip 0.14s ease-out; }
+@keyframes flip { from { transform: scaleX(0.05); } to { transform: scaleX(1); } }
 
 .card.hint, .slot.hint { outline: 4px solid var(--hl); outline-offset: -2px; box-shadow: 0 0 16px var(--hl); }
 .card.shake { animation: shake 0.28s; }
@@ -164,6 +200,7 @@ body { display: flex; flex-direction: column; }
   font-size: 16px;
   opacity: 0;
   pointer-events: none;
+  z-index: 5000; /* above every card, including dragged ones */
   transition: opacity 0.2s, transform 0.2s;
   max-width: calc(100% - 32px);
   text-align: center;

@@ -88,7 +88,13 @@ function markStarted() {
 
 function undo() {
   if (busy || !history.length || game.won) return;
-  const prev = JSON.parse(history.pop());
+  restoreHistory(history.length - 1);
+}
+
+// Go back to history[k], dropping it and everything after it.
+function restoreHistory(k) {
+  const prev = JSON.parse(history[k]);
+  history.length = k;
   prev.elapsed = game.elapsed;
   prev.moves = game.moves + 1;
   prev.started = game.started;
@@ -282,10 +288,10 @@ async function playPath(path) {
 
 let worker = null;
 let solverReq = 0;
-function askSolver(maxNodes) {
+function askSolver(maxNodes, state = game) {
   if (!worker) worker = new Worker(new URL('./solver-worker.js', import.meta.url), { type: 'module' });
   const id = ++solverReq;
-  const { tableau, stock, waste, foundations, drawCount } = game;
+  const { tableau, stock, waste, foundations, drawCount } = state;
   return new Promise((resolve) => {
     const onMsg = (e) => {
       if (e.data.id !== id) return;
@@ -319,10 +325,37 @@ async function hint() {
   toast('Thinking…', 800);
   const r = await askSolver(80000);
   if (r.solved && r.path.length) return showHint(r.path[0]);
-  if (r.complete) return toast('This game can no longer be won from here. Use Undo to go back.', 3500);
+  if (r.complete) return offerRewind();
   const simple = simpleHint();
   if (simple) return showHint(simple);
   toast('No moves left. Try Undo.');
+}
+
+// The game is lost: offer to undo back to the last position that can still be won.
+function offerRewind() {
+  const dlg = $('stuck');
+  dlg.returnValue = '';
+  dlg.showModal();
+  dlg.addEventListener('close', () => { if (dlg.returnValue === 'back') rewind(); }, { once: true });
+}
+
+// Once a position can't be won, no later one can, so the history splits into a
+// winnable start and a lost end. Binary search for the last winnable snapshot.
+async function rewind() {
+  if (busy) return;
+  busy = true;
+  toast('Looking for the last winnable position…', 60000);
+  let lo = -1, hi = history.length; // history[lo] winnable (-1: none found yet), history[hi] lost
+  while (hi - lo > 1) {
+    const mid = (lo + hi) >> 1;
+    const r = await askSolver(150000, JSON.parse(history[mid]));
+    if (r.solved) lo = mid; else hi = mid;
+  }
+  busy = false;
+  if (lo < 0) return toast('Could not find a winnable position. Try Restart from the menu.', 3500);
+  const back = history.length - lo;
+  restoreHistory(lo);
+  toast(`Went back ${back} move${back === 1 ? '' : 's'}. This position can still be won.`, 3000);
 }
 
 function showHint(m) {
@@ -372,9 +405,10 @@ function makeCard(c) {
   const el = document.createElement('div');
   el.className = 'card ' + (isRed(c) ? 'red' : 'black');
   el.dataset.card = c;
-  const r = rankOf(c), s = SUITS[suitOf(c)];
-  const center = r > 10 ? `<div class="face">${RANKS[r]}<small>${s}</small></div>` : `<div class="pip">${s}</div>`;
-  el.innerHTML = `<div class="idx">${RANKS[r]}<span>${s}</span></div><div class="s1">${s}</div>${center}`;
+  const r = rankOf(c);
+  const suit = (cls = '') => `<svg class="${cls}" viewBox="0 0 100 100"><use href="#suit-${suitOf(c)}"/></svg>`;
+  const center = r > 10 ? `<div class="face"><b>${RANKS[r]}</b>${suit()}</div>` : suit('pip');
+  el.innerHTML = `<div class="idx${r === 10 ? ' ten' : ''}">${RANKS[r]}</div>${suit('s1')}${center}`;
   return el;
 }
 
@@ -428,11 +462,31 @@ function pileOffsets(pile) {
   return { down, up };
 }
 
-function place(el, x, y, z, up) {
-  el.style.left = x + 'px';
-  el.style.top = y + 'px';
+// A card turning face up waits a moment, then flips, so the reveal follows the move.
+const FLIP_DELAY = 120;
+
+function place(el, x, y, z, up, instant) {
+  el.style.left = Math.round(x) + 'px'; // whole pixels keep card edges and text crisp
+  el.style.top = Math.round(y) + 'px';
   el.style.zIndex = z;
-  el.classList.toggle('down', !up);
+  if (!up) {
+    clearTimeout(el.flipTimer);
+    el.flipTimer = null;
+    el.classList.add('down');
+  } else if (instant) {
+    clearTimeout(el.flipTimer);
+    el.flipTimer = null;
+    el.classList.remove('down');
+  } else if (el.classList.contains('down') && !el.flipTimer) {
+    el.flipTimer = setTimeout(() => {
+      el.flipTimer = null;
+      el.classList.remove('down');
+      el.classList.remove('flip');
+      void el.offsetWidth;
+      el.classList.add('flip');
+      setTimeout(() => el.classList.remove('flip'), 200);
+    }, FLIP_DELAY);
+  }
 }
 
 function render(fresh = false) {
@@ -457,13 +511,13 @@ function render(fresh = false) {
   game.waste.forEach((c, i) => {
     const fromTop = game.waste.length - 1 - i;
     const k = fromTop < fan ? fan - 1 - fromTop : 0;
-    place(cardEls.get(c), colX(1) + k * fanStep, top, 100 + i, true);
+    place(cardEls.get(c), colX(1) + k * fanStep, top, 100 + i, true, fresh);
   });
 
   // Foundations.
   game.fslots.forEach((suit, slot) => {
     if (suit < 0) return;
-    game.foundations[suit].forEach((c, i) => place(cardEls.get(c), colX(3 + slot), top, 200 + i, true));
+    game.foundations[suit].forEach((c, i) => place(cardEls.get(c), colX(3 + slot), top, 200 + i, true, fresh));
   });
   slotEls.found.forEach((el, slot) => { el.textContent = game.fslots[slot] >= 0 ? '' : 'A'; });
 
@@ -472,7 +526,7 @@ function render(fresh = false) {
     const { down, up } = pileOffsets(pile);
     let y = tabTop;
     pile.forEach((x, j) => {
-      place(cardEls.get(x.c), colX(i), y, 300 + j, x.up);
+      place(cardEls.get(x.c), colX(i), y, 300 + j, x.up, fresh);
       y += x.up ? up : down;
     });
   });
