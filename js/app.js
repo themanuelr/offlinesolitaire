@@ -405,10 +405,11 @@ function makeCard(c) {
   const el = document.createElement('div');
   el.className = 'card ' + (isRed(c) ? 'red' : 'black');
   el.dataset.card = c;
+  el.classList.add('su' + suitOf(c));
   const r = rankOf(c);
-  const suit = (cls = '') => `<svg class="${cls}" viewBox="0 0 100 100"><use href="#suit-${suitOf(c)}"/></svg>`;
-  const center = r > 10 ? `<div class="face"><b>${RANKS[r]}</b>${suit()}</div>` : suit('pip');
-  el.innerHTML = `<div class="idx${r === 10 ? ' ten' : ''}">${RANKS[r]}</div>${suit('s1')}${center}`;
+  // Suit shapes are CSS background images (see style.css): far cheaper to paint than inline SVG.
+  const center = r > 10 ? `<div class="face"><b>${RANKS[r]}</b><i></i></div>` : '<i class="pip"></i>';
+  el.innerHTML = `<div class="idx${r === 10 ? ' ten' : ''}">${RANKS[r]}</div><i class="s1"></i>${center}`;
   return el;
 }
 
@@ -465,11 +466,18 @@ function pileOffsets(pile) {
 // A card on the move rides above everything until it lands, then takes its real stacking order.
 const MOVE_MS = 180;
 
+// Cards are positioned with the CSS `translate` property so moves animate on the GPU
+// compositor instead of re-running layout and repainting the table every frame.
+function setPos(el, x, y) {
+  el.px = x;
+  el.py = y;
+  el.style.translate = `${x}px ${y}px`;
+}
+
 function place(el, x, y, z, up, instant) {
-  const left = Math.round(x) + 'px', top = Math.round(y) + 'px'; // whole pixels keep edges and text crisp
-  const moving = !instant && (el.style.left !== left || el.style.top !== top) && el.style.left !== '';
-  el.style.left = left;
-  el.style.top = top;
+  x = Math.round(x); y = Math.round(y); // whole pixels keep edges and text crisp
+  const moving = !instant && el.px !== undefined && (el.px !== x || el.py !== y);
+  setPos(el, x, y);
   clearTimeout(el.landTimer);
   if (moving || (el.landTimer && !instant)) {
     if (moving) el.style.zIndex = 1000 + z;
@@ -599,7 +607,7 @@ function dropTarget(src, x, y) {
     const x0 = L.colX(i);
     const p = game.tableau[i];
     const topEl = p.length ? cardEls.get(topOf(p).c) : null;
-    const ty = topEl ? parseFloat(topEl.style.top) : L.tabTop;
+    const ty = topEl ? topEl.py : L.tabTop;
     consider({ area: 'tableau', pile: i }, { l: x0, t: Math.min(ty, L.tabTop), r: x0 + L.w, b: ty + L.h * 1.3 });
   }
   return best;
@@ -624,7 +632,7 @@ board.addEventListener('pointerdown', (e) => {
   const els = cards.map((k) => cardEls.get(k));
   drag = {
     id: e.pointerId, src, els, sx: e.clientX, sy: e.clientY, moved: false,
-    orig: els.map((x) => ({ l: parseFloat(x.style.left), t: parseFloat(x.style.top), z: x.style.zIndex })),
+    orig: els.map((x) => ({ l: x.px, t: x.py, z: x.style.zIndex })),
   };
   board.setPointerCapture(e.pointerId);
 });
@@ -638,10 +646,7 @@ board.addEventListener('pointermove', (e) => {
     clearHint();
     drag.els.forEach((el, i) => { el.classList.add('dragging'); el.style.zIndex = 1000 + i; });
   }
-  drag.els.forEach((el, i) => {
-    el.style.left = drag.orig[i].l + dx + 'px';
-    el.style.top = drag.orig[i].t + dy + 'px';
-  });
+  drag.els.forEach((el, i) => setPos(el, drag.orig[i].l + dx, drag.orig[i].t + dy));
 });
 
 function endDrag(e, cancelled) {
@@ -656,7 +661,7 @@ function endDrag(e, cancelled) {
     if (!dst || !doMove(d.src, dst)) shake(d.els[0]);
     return;
   }
-  const x = parseFloat(d.els[0].style.left), y = parseFloat(d.els[0].style.top);
+  const x = d.els[0].px, y = d.els[0].py;
   const dst = dropTarget(d.src, x, y);
   if (!dst || !doMove(d.src, dst)) render();
 }

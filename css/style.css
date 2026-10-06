@@ -94,8 +94,14 @@ body { display: flex; flex-direction: column; }
   border-radius: calc(var(--cw) * 0.07);
   background: var(--card);
   border: 1px solid rgba(0, 0, 0, 0.22);
+  left: 0;
+  top: 0;
   box-shadow: 0 1px 0 rgba(0, 0, 0, 0.25), 0 2px 4px rgba(0, 0, 0, 0.18);
-  transition: left 0.16s ease-out, top 0.16s ease-out;
+  /* Position comes from `translate` (set in app.js) so moves run on the compositor.
+     Each card gets its own GPU layer, painted once and then only moved around. */
+  transition: translate 0.16s ease-out;
+  will-change: translate;
+  contain: layout style;
   overflow: hidden;
   font-family: "Inter", system-ui, sans-serif;
   font-feature-settings: "tnum" 0, "cv08" 1;
@@ -103,7 +109,12 @@ body { display: flex; flex-direction: column; }
 .card.dragging { transition: none; box-shadow: 0 10px 22px rgba(0, 0, 0, 0.4); }
 .card.red { color: var(--red); }
 .card.black { color: var(--black); }
-.card svg { display: block; fill: currentColor; }
+/* Suit shapes: one cached image per suit instead of inline SVG in every card. */
+.card i { display: block; background: center / contain no-repeat; }
+.card.su0 i { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' fill='%231b1b1f'%3E%3Cpath d='M50 3C62 22 95 38 95 61C95 75 84 83 72 83C64 83 57 79 54 72C55 83 59 91 68 97H32C41 91 45 83 46 72C43 79 36 83 28 83C16 83 5 75 5 61C5 38 38 22 50 3Z'/%3E%3C/svg%3E"); }
+.card.su1 i { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' fill='%23d01c2b'%3E%3Cpath d='M50 94C20 70 4 54 4 32C4 17 15 6 29 6C39 6 46 12 50 20C54 12 61 6 71 6C85 6 96 17 96 32C96 54 80 70 50 94Z'/%3E%3C/svg%3E"); }
+.card.su2 i { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' fill='%23d01c2b'%3E%3Cpath d='M50 2Q67 28 90 50Q67 72 50 98Q33 72 10 50Q33 28 50 2Z'/%3E%3C/svg%3E"); }
+.card.su3 i { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' fill='%231b1b1f'%3E%3Ccircle cx='50' cy='27' r='22'/%3E%3Ccircle cx='26' cy='59' r='22'/%3E%3Ccircle cx='74' cy='59' r='22'/%3E%3Ccircle cx='50' cy='52' r='12'/%3E%3Cpath d='M45 55H55C55 76 60 88 69 97H31C40 88 45 76 45 55Z'/%3E%3C/svg%3E"); }
 
 .card .idx {
   position: absolute;
@@ -150,7 +161,7 @@ body { display: flex; flex-direction: column; }
   font-size: calc(var(--cw) * 0.38);
   line-height: 1;
 }
-.card .face svg { width: calc(var(--cw) * 0.22); height: calc(var(--cw) * 0.22); }
+.card .face i { width: calc(var(--cw) * 0.22); height: calc(var(--cw) * 0.22); }
 
 /* Card back: deep red with a fine diamond lattice and a light inner frame. */
 .card.down {
