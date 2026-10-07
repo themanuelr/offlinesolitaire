@@ -1,8 +1,9 @@
 // Klondike solver with full knowledge of every card (the standard definition of "solvable").
-// Used offline to build the bank of solvable deals, and in a worker for the Hint button.
+// Used offline to build the bank of solvable deals, and in a worker for Hint and rewind.
 // Unlimited passes through the stock, drawing 1 or 3 cards at a time.
 
-import { suitOf, rankOf, isRed } from './engine.js';
+import { suitOf, rankOf, isRed, mulberry32 } from './engine.js';
+let rnd = null; // set while a restart probe shuffles the move order
 
 // Solver state:
 //   piles[i]: cards bottom..top, down[i]: how many of them are face down
@@ -22,9 +23,64 @@ function copy(s) {
   return { piles: s.piles.map((p) => p.slice()), down: s.down.slice(), found: s.found.slice(), seq: s.seq.slice(), w: s.w, d: s.d };
 }
 
-function key(s) {
-  const piles = s.piles.map((p, i) => s.down[i] + ':' + String.fromCharCode(...p.map((c) => c + 48))).sort();
-  return s.found.join('') + '|' + s.w + '|' + String.fromCharCode(...s.seq.map((c) => c + 48)) + '|' + piles.join(',');
+// 64-bit position hash as two 32-bit words. Piles are combined with a sum so their
+// order does not matter (same symmetry as sorting them).
+let H1 = 0, H2 = 0;
+function hashKey(s) {
+  let a1 = 0, a2 = 0;
+  for (let i = 0; i < 7; i++) {
+    const p = s.piles[i];
+    let x = 0x9e3779b9 ^ s.down[i], y = 0x85ebca6b + s.down[i];
+    for (let j = 0; j < p.length; j++) {
+      x = Math.imul(x ^ (p[j] + 1), 0x01000193);
+      y = Math.imul(y + p[j] + 7, 0x5bd1e995); y ^= y >>> 15;
+    }
+    x ^= x >>> 13; x = Math.imul(x, 0xc2b2ae35); x ^= x >>> 16;
+    a1 = (a1 + x) | 0; a2 = (a2 + Math.imul(y, 0x27d4eb2d)) | 0;
+  }
+  const n = s.seq.length;
+  const w = s.w === n || s.w % s.d === 0 ? 99 : s.w;
+  let x = Math.imul(a1 ^ w, 0x01000193), y = a2 + w * 0x3c6ef372;
+  for (let j = 0; j < n; j++) {
+    x = Math.imul(x ^ (s.seq[j] + 1), 0x01000193);
+    y = Math.imul(y + s.seq[j] + 3, 0x5bd1e995); y ^= y >>> 15;
+  }
+  const f = s.found[0] | (s.found[1] << 4) | (s.found[2] << 8) | (s.found[3] << 12) | (s.d << 16);
+  x = Math.imul(x ^ f, 0x85ebca6b); x ^= x >>> 16;
+  y = Math.imul(y ^ (f * 31), 0xcc9e2d51); y ^= y >>> 13;
+  H1 = x | 1; H2 = y; // H1 is never 0, so 0 marks an empty slot
+}
+
+// Open-addressing set of 64-bit hashes.
+class HashSet {
+  constructor(bits = 16) { this.bits = bits; this.t = new Int32Array(2 << bits); this.size = 0; }
+  clear() { this.t.fill(0); this.size = 0; }
+  // Adds (H1, H2); returns false if it was already there.
+  add(h1, h2) {
+    if (this.size * 2 > (1 << this.bits)) this.grow();
+    const mask = (1 << this.bits) - 1, t = this.t;
+    let i = (h2 ^ (h1 >>> 7)) & mask;
+    while (t[2 * i] !== 0) {
+      if (t[2 * i] === h1 && t[2 * i + 1] === h2) return false;
+      i = (i + 1) & mask;
+    }
+    t[2 * i] = h1; t[2 * i + 1] = h2; this.size++;
+    return true;
+  }
+  has(h1, h2) {
+    const mask = (1 << this.bits) - 1, t = this.t;
+    let i = (h2 ^ (h1 >>> 7)) & mask;
+    while (t[2 * i] !== 0) {
+      if (t[2 * i] === h1 && t[2 * i + 1] === h2) return true;
+      i = (i + 1) & mask;
+    }
+    return false;
+  }
+  grow() {
+    const old = this.t; this.bits++; this.t = new Int32Array(2 << this.bits); this.size = 0;
+    for (let i = 0; i < old.length; i += 2) if (old[i] !== 0) this.add(old[i], old[i + 1]);
+  }
+  forEach(fn) { const t = this.t; for (let i = 0; i < t.length; i += 2) if (t[i] !== 0) fn(t[i], t[i + 1]); }
 }
 
 const fits = (c, top) => rankOf(top) === rankOf(c) + 1 && isRed(top) !== isRed(c);
@@ -144,6 +200,8 @@ function moves(s) {
     }
   }
   reveal.sort((a, b) => s.down[b.from] - s.down[a.from]);
+  if (rnd) { const sh = (a) => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+    return first.concat(sh(reveal.concat(talon)), sh(other), last); }
   return first.concat(reveal, talon, other, last);
 }
 
@@ -151,9 +209,31 @@ const done = (s) => s.found.every((f) => f === 13);
 
 // Returns { solved: true, path } | { solved: false, complete } where complete means
 // the search space was exhausted (definitely unsolvable under the solver's move set).
+// Positions proven lost by an exhaustive search. Kept between calls so the rewind does not
+// re-prove what Hint (or the previous step back) already showed; reset() when the game changes.
+const lost = new HashSet(12);
+const seen = new HashSet(16);
+export function reset() { lost.clear(); }
+export const lostCount = () => lost.size;
+// Restarts: short searches with shuffled move order catch wins that one fixed order
+// misses for a long time; a probe that finishes inside its budget is a full proof.
 export function solve(game, maxNodes = 200000) {
+  let spent = 0, budget = 2000, i = 0;
+  while (spent + budget < maxNodes / 4) {
+    rnd = i ? mulberry32(i) : null; i++;
+    const r = solveOnce(game, budget);
+    spent += r.nodes;
+    if (r.solved || r.complete) { r.nodes = spent; rnd = null; return r; }
+    budget = Math.floor(budget * 1.5);
+  }
+  rnd = null;
+  const r = solveOnce(game, maxNodes - spent);
+  r.nodes += spent;
+  return r;
+}
+function solveOnce(game, maxNodes) {
   let nodes = 0;
-  const seen = new Set();
+  seen.clear();
   const path = [];
   let aborted = false;
 
@@ -161,9 +241,8 @@ export function solve(game, maxNodes = 200000) {
     const mark = path.length;
     s = autoPlay(s, path);
     if (done(s)) return true;
-    const k = key(s);
-    if (seen.has(k)) { path.length = mark; return false; }
-    seen.add(k);
+    hashKey(s);
+    if (lost.has(H1, H2) || !seen.add(H1, H2)) { path.length = mark; return false; }
     if (++nodes > maxNodes) { aborted = true; path.length = mark; return false; }
     for (const m of moves(s)) {
       path.push(m);
@@ -176,5 +255,6 @@ export function solve(game, maxNodes = 200000) {
   }
 
   const ok = dfs(fromGame(game));
-  return ok ? { solved: true, path, nodes } : { solved: false, complete: !aborted, nodes };
+  if (!ok && !aborted) seen.forEach((a, b) => lost.add(a, b));
+  return ok ? { solved: true, path, nodes } : { solved: false, complete: !aborted, nodes: Math.min(nodes, maxNodes) };
 }

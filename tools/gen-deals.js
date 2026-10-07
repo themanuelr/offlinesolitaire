@@ -4,7 +4,7 @@ import { Worker, isMainThread, parentPort, workerData } from 'node:worker_thread
 import { writeFileSync } from 'node:fs';
 import { cpus } from 'node:os';
 import { deal } from '../js/engine.js';
-import { solve } from '../js/solver.js';
+import { solve, reset } from '../js/solver.js';
 import { replay } from './replay.js';
 
 const NODE_LIMIT = 20000;
@@ -12,6 +12,7 @@ const NODE_LIMIT = 20000;
 if (!isMainThread) {
   const { drawCount, start, step, want } = workerData;
   for (let seed = start, found = 0; found < want; seed += step) {
+    reset(); // each deal is its own game
     const r = solve(deal(seed, drawCount), NODE_LIMIT);
     if (r.solved && replay(seed, drawCount, r.path)) { parentPort.postMessage(seed); found++; }
   }

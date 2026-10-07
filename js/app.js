@@ -300,7 +300,7 @@ function askSolver(maxNodes, state = game) {
       resolve(e.data.result);
     };
     worker.addEventListener('message', onMsg);
-    worker.postMessage({ id, maxNodes, game: { tableau, stock, waste, foundations, drawCount } });
+    worker.postMessage({ id, maxNodes, gameKey: `${game.seed}:${game.drawCount}`, game: { tableau, stock, waste, foundations, drawCount } });
   });
 }
 
@@ -345,11 +345,7 @@ async function rewind() {
   if (busy) return;
   busy = true;
   toast('Looking for the last winnable position…', 60000);
-  const check = async (snap) => {
-    const state = JSON.parse(snap);
-    const r = await askSolver(150000, state);
-    return r.solved || r.complete ? r : askSolver(500000, state);
-  };
+  const check = (snap) => askSolver(650000, JSON.parse(snap));
   const found = await findLastWinnable(history, check);
   busy = false;
   if (!found) return toast('Could not find a winnable position. Try Restart from the menu.', 3500);
