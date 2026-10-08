@@ -1,8 +1,10 @@
 // Replays a solver path with the game's own rules, to prove each deal is winnable in the app.
 import { deal, drawStock, canGoToFoundation, canGoToTableau, isMovableRun, isWon, suitOf } from '../js/engine.js';
 
-export function replay(seed, drawCount, path) {
-  const g = deal(seed, drawCount);
+// start: optional game state to replay from instead of the fresh deal (it is not modified).
+// won = false replays a partial path. Returns the final game state.
+export function replay(seed, drawCount, path, start = null, won = true) {
+  const g = start ? JSON.parse(JSON.stringify(start)) : deal(seed, drawCount);
   const fail = (msg) => { throw new Error(`seed ${seed}: ${msg}`); };
   const reveal = (p) => { if (p.length && !p[p.length - 1].up) p[p.length - 1].up = true; };
   for (const m of path) {
@@ -26,6 +28,6 @@ export function replay(seed, drawCount, path) {
       g.tableau[m.to].push({ c: f.pop(), up: true });
     }
   }
-  if (!isWon(g)) fail('not won at end of path');
-  return true;
+  if (!won || isWon(g)) return g;
+  fail('not won at end of path');
 }

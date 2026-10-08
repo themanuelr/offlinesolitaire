@@ -205,6 +205,36 @@ function moves(s) {
   return first.concat(reveal, talon, other, last);
 }
 
+// The search sometimes takes a card down from a foundation and puts it straight back
+// later without using it (e.g. 5♥ onto 6♠, then 5♥ home again). Shown as a hint, that first
+// move looks pointless, so drop such pairs: a 'ft' and the 'tf' that undoes it, when nothing
+// in between touches that pile or that suit's foundation.
+function simplify(start, path) {
+  for (let changed = true; changed;) {
+    changed = false;
+    const states = [start];
+    for (const m of path) states.push(apply(states[states.length - 1], m));
+    const suitMoved = (k) => {
+      const m = path[k], s = states[k];
+      if (m.t === 'tf') return suitOf(s.piles[m.from][s.piles[m.from].length - 1]);
+      if (m.t === 'wf') return suitOf(s.seq[m.w - 1]);
+      if (m.t === 'ft') return m.suit;
+      return -1;
+    };
+    for (let k = 0; k < path.length && !changed; k++) {
+      const m = path[k];
+      if (m.t !== 'ft') continue;
+      const j = m.to;
+      for (let l = k + 1; l < path.length; l++) {
+        const n = path[l];
+        if (n.t === 'tf' && n.from === j) { path = path.filter((_, i) => i !== k && i !== l); changed = true; break; }
+        if (n.from === j || n.to === j || suitMoved(l) === m.suit) break;
+      }
+    }
+  }
+  return path;
+}
+
 const done = (s) => s.found.every((f) => f === 13);
 
 // Returns { solved: true, path } | { solved: false, complete } where complete means
@@ -254,7 +284,8 @@ function solveOnce(game, maxNodes) {
     return false;
   }
 
-  const ok = dfs(fromGame(game));
+  const start = fromGame(game);
+  const ok = dfs(start);
   if (!ok && !aborted) seen.forEach((a, b) => lost.add(a, b));
-  return ok ? { solved: true, path, nodes } : { solved: false, complete: !aborted, nodes: Math.min(nodes, maxNodes) };
+  return ok ? { solved: true, path: simplify(start, path), nodes } : { solved: false, complete: !aborted, nodes: Math.min(nodes, maxNodes) };
 }

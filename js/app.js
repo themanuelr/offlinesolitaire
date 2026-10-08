@@ -366,7 +366,12 @@ function showHint(m) {
     return highlight(cardEls.get(c), foundationTarget(suitOf(c)));
   }
   if (m.t === 'tt') return highlight(cardEls.get(game.tableau[m.from][m.idx].c), tableauTarget(m.to));
-  if (m.t === 'ft') return highlight(cardEls.get(topOf(game.foundations[m.suit])), tableauTarget(m.to));
+  if (m.t === 'ft') {
+    // Taking a card back off a foundation is easy to misread as the other way round, so say it.
+    const c = topOf(game.foundations[m.suit]), onto = topOf(game.tableau[m.to]);
+    toast(`Move the ${RANKS[rankOf(c)]}${SUITS[suitOf(c)]} from its foundation down onto the ${RANKS[rankOf(onto.c)]}${SUITS[suitOf(onto.c)]}.`, 3000);
+    return highlight(cardEls.get(c), tableauTarget(m.to));
+  }
 }
 
 function foundationTarget(suit) {
