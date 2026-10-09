@@ -7,7 +7,7 @@ let n = 0;
 for (const d of [3, 1]) {
   const list = DEALS[d];
   for (let i = 0; i < list.length; i += Math.max(1, Math.floor(list.length / 40))) {
-    const r = solve(deal(list[i], d), 20000);
+    const r = solve(deal(list[i], d), 100000);
     if (!r.solved) throw new Error(`draw ${d} seed ${list[i]} not solved`);
     replay(list[i], d, r.path); n++;
   }

@@ -16,6 +16,7 @@ No build step: the site is the static files at the repo root.
 ```
 npx http-server -p 8080 -c-1 &
 node tools/verify-deals.js   # re-solves a sample of the bank
+node tools/state.js "1.3.…"   # looks at a position copied with dev mode (Settings: tap the version 4 times)
 node tests/e2e.js            # tablet-sized browser test, including offline and installability
 node tools/gen-deals.js 3000 1000   # regenerate the deal bank
 node tools/render-icons.js   # re-render PNG icons from icons/*.svg

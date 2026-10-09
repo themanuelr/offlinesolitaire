@@ -108,6 +108,50 @@ for (const mode of [3, 3, 1]) {
   await page.waitForTimeout(300);
 }
 
+// Once every card is face up the game finishes itself, in every game, not only the first
+// one of the session (it used to stop working after the first auto-finish).
+for (const round of [1, 2]) {
+  await page.evaluate(() => {
+    const api = window.__solitaire; api.newGame(3);
+    const g = api.game;
+    const card = (s, r) => s * 13 + r - 1;
+    g.foundations = [0, 1, 2, 3].map((s) => Array.from({ length: 11 }, (_, i) => card(s, i + 1)));
+    g.fslots = [0, 1, 2, 3];
+    g.stock = []; g.waste = [];
+    g.tableau = [[card(0, 13), card(1, 12)], [card(1, 13), card(0, 12)], [card(2, 13), card(3, 12)], [card(3, 13), card(2, 12)], [], [], []]
+      .map((p) => p.map((c) => ({ c, up: true })));
+    api.doMove({ area: 'tableau', pile: 0, idx: 1 }, { area: 'foundation' });
+  });
+  await page.waitForFunction(() => window.__solitaire.game.won, null, { timeout: 6000 })
+    .then(() => check(true, `auto-finish runs (game ${round} of the session)`), () => check(false, `auto-finish runs (game ${round} of the session)`));
+  await page.waitForSelector('#win[open]', { timeout: 4000 }).catch(() => {});
+  await page.click('#btn-win-new');
+  await page.waitForTimeout(300);
+}
+
+// Dev mode: tapping the version 4 times shows the switch; turning it on adds the copy button.
+check(await page.locator('#btn-copy').isHidden(), 'copy button is hidden without dev mode');
+await page.click('#btn-menu');
+check(/^v\d+$/.test(await page.locator('#menu-version').textContent()), 'menu shows the app version');
+check(await page.locator('#dev-row').isHidden(), 'dev mode switch starts hidden');
+for (let i = 0; i < 4; i++) await page.click('#menu-version');
+check(await page.locator('#dev-row').isVisible(), 'four taps on the version show the dev mode switch');
+await page.click('#dev-toggle');
+await page.click('#menu form button');
+check(await page.locator('#btn-copy').isVisible(), 'dev mode adds the copy button');
+await ctx.grantPermissions(['clipboard-read', 'clipboard-write']);
+await page.click('#btn-copy');
+const copied = await page.evaluate(() => navigator.clipboard.readText());
+const expected = await page.evaluate(async () => {
+  const { encodeState } = await import('./js/engine.js');
+  const g = window.__solitaire.game; return encodeState(g, g.dealIndex + 1);
+});
+check(copied === expected && /^1\.3\.\d+\./.test(copied), `copy button copies the game state (${copied.slice(0, 20)}…)`);
+await page.click('#btn-menu');
+await page.click('#dev-toggle');
+await page.click('#menu form button');
+check(await page.locator('#btn-copy').isHidden(), 'turning dev mode off removes the copy button');
+
 // Installability (manifest + icons + service worker) as Chrome sees it.
 await page.reload();
 await page.waitForFunction(() => navigator.serviceWorker.controller !== null, null, { timeout: 10000 });

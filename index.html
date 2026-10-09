@@ -17,6 +17,7 @@
     <div class="group">
       <button id="btn-new" class="btn">New</button>
       <button id="btn-menu" class="btn" aria-label="Menu">☰</button>
+      <button id="btn-copy" class="btn" aria-label="Copy game state" title="Copy game state" hidden>⧉</button>
     </div>
     <div id="info">
       <span id="info-mode">Draw 3</span>
@@ -35,6 +36,7 @@
   <div id="toast" role="status" aria-live="polite"></div>
 
   <dialog id="menu">
+    <span id="menu-version" class="version"></span>
     <h2>Solitaire</h2>
     <p class="deal-label" id="menu-deal"></p>
     <div class="menu-section">
@@ -49,6 +51,7 @@
       <button id="btn-restart" class="btn wide">Restart this deal</button>
       <button id="btn-stats" class="btn wide">Statistics</button>
     </div>
+    <label id="dev-row" class="dev-row" hidden><input type="checkbox" id="dev-toggle"> Dev mode</label>
     <p class="small">Every deal is checked by a solver, so every game can be won.</p>
     <form method="dialog"><button class="btn wide primary">Close</button></form>
   </dialog>

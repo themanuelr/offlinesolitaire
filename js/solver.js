@@ -138,7 +138,10 @@ function autoPlay(s, path) {
         const m = { t: 'tf', from: i }; s = apply(s, m); path.push(m); changed = true;
       }
     }
-    if (s.w > 0) {
+    // Only in Draw 1. In Draw 3, taking a card off the waste shifts every card behind it,
+    // which changes the cards later draws land on, so sending it home is a real choice:
+    // forcing it made the solver call winnable positions lost (game 2953).
+    if (s.d === 1 && s.w > 0) {
       const c = s.seq[s.w - 1];
       if (toFound(s, c) && safeToFound(s, c)) {
         const m = { t: 'wf', w: s.w }; s = apply(s, m); path.push(m); changed = true;

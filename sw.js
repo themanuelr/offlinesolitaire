@@ -1,6 +1,6 @@
 // Offline support: everything the game needs is cached on first visit.
 // Bump VERSION whenever any file changes so installed copies update.
-const VERSION = 'v7';
+const VERSION = 'v8';
 const CACHE = `solitaire-${VERSION}`;
 const FILES = [
   './',
@@ -13,6 +13,7 @@ const FILES = [
   'js/solver-worker.js',
   'js/rewind.js',
   'js/deals.js',
+  'js/version.js',
   'manifest.webmanifest',
   'icons/icon.svg',
   'icons/icon-192.png',

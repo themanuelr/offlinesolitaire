@@ -1,7 +1,8 @@
 import {
   deal, cloneState, drawStock, canGoToFoundation, canGoToTableau, isMovableRun, isWon,
-  suitOf, rankOf, isRed, SUITS, RANKS, mulberry32,
+  suitOf, rankOf, isRed, SUITS, RANKS, mulberry32, encodeState,
 } from './engine.js';
+import { VERSION } from './version.js';
 import { DEALS } from './deals.js';
 import { findLastWinnable } from './rewind.js';
 
@@ -59,6 +60,7 @@ function startGame(d, dealIndex) {
     wasteFan: 0, fslots: [-1, -1, -1, -1],
   };
   history = [];
+  finishOffered = false;
   clearHint();
   save();
   render(true);
@@ -242,16 +244,24 @@ function celebrate() {
   }
 }
 
+// Once every card is face up, the solver plays the rest. finishOffered stops a second
+// request while one is out; it is cleared for each new deal and whenever the finish
+// does not start, so the next move tries again.
 let finishOffered = false;
 function maybeOfferFinish() {
-  if (finishOffered || game.won) return;
+  if (finishOffered || game.won || busy) return;
   if (game.tableau.some((p) => p.some((x) => !x.up))) return;
   finishOffered = true;
+  const at = game;
+  const moves = game.moves;
   askSolver(200000).then((r) => {
-    if (r.solved && !game.won && !busy) {
-      toast('All cards are face up. Finishing for you…');
-      playPath(r.path);
-    } else finishOffered = false;
+    finishOffered = false;
+    if (game !== at || game.won) return;
+    // The player moved while the solver was thinking: its path no longer fits, so ask again.
+    if (busy || game.moves !== moves) return maybeOfferFinish();
+    if (!r.solved) return;
+    toast('All cards are face up. Finishing for you…');
+    playPath(r.path);
   });
 }
 
@@ -680,6 +690,9 @@ function shake(el) {
 // ---------- menu, stats, buttons ----------
 
 function renderMenu() {
+  $('menu-version').textContent = VERSION;
+  $('dev-row').hidden = !(devRevealed || store.settings.dev);
+  $('dev-toggle').checked = !!store.settings.dev;
   $('menu-deal').textContent = `Draw ${game.drawCount} · Game ${game.dealIndex + 1} of ${DEALS[game.drawCount].length}`;
   document.querySelectorAll('.seg button').forEach((b) => b.classList.toggle('on', Number(b.dataset.draw) === store.settings.drawCount));
 }
@@ -718,6 +731,45 @@ document.querySelectorAll('.seg button').forEach((b) => {
 });
 $('win').addEventListener('close', () => newGame());
 
+// ---------- dev mode ----------
+// Tapping the version in the menu 4 times shows the dev mode switch. Dev mode adds a button
+// that copies the current position as a string of digits (see encodeState) for bug reports.
+
+let devRevealed = false, versionTaps = 0, versionTapTimer = null;
+$('menu-version').onclick = () => {
+  clearTimeout(versionTapTimer);
+  versionTapTimer = setTimeout(() => { versionTaps = 0; }, 1500);
+  if (++versionTaps < 4) return;
+  versionTaps = 0;
+  devRevealed = true;
+  renderMenu();
+};
+$('dev-toggle').onchange = (e) => {
+  store.settings.dev = e.target.checked;
+  save();
+  renderDev();
+};
+function renderDev() { $('btn-copy').hidden = !store.settings.dev; }
+
+async function copyState() {
+  const text = encodeState(game, game.dealIndex + 1);
+  try {
+    await navigator.clipboard.writeText(text);
+  } catch {
+    // Clipboard API unavailable (e.g. not https): fall back to a selected text field.
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    document.body.appendChild(ta);
+    ta.select();
+    const ok = document.execCommand('copy');
+    ta.remove();
+    if (!ok) return toast(text, 8000);
+  }
+  toast('Game state copied');
+}
+$('btn-copy').onclick = copyState;
+renderDev();
+
 window.addEventListener('resize', () => { L = computeLayout(); render(); });
 document.addEventListener('visibilitychange', () => { lastTick = performance.now(); save(); });
 
@@ -730,6 +782,7 @@ if (store.game && DEALS[store.game.drawCount]) {
   render(true);
   updateInfo();
   if (game.won) newGame();
+  else maybeOfferFinish();
 } else {
   newGame();
 }
@@ -738,7 +791,7 @@ startTimer();
 // Expose a tiny API for automated tests.
 window.__solitaire = {
   get game() { return game; },
-  draw, doMove, newGame, undo, hint, rewind, autoDestination,
+  draw, doMove, newGame, undo, hint, rewind, autoDestination, copyState,
   playSolution: async () => { const r = await askSolver(400000); if (r.solved) await playPath(r.path); return r.solved; },
 };
 

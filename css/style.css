@@ -255,3 +255,13 @@ table.stats th:first-child, table.stats td:first-child { text-align: left; }
   to { transform: translate(var(--dx), var(--dy)) rotate(var(--rot)); opacity: 0; }
 }
 .card.fly { animation: fly 1.6s ease-in forwards; transition: none; }
+
+dialog { position: relative; }
+.version {
+  position: absolute; top: 10px; right: 14px; padding: 6px;
+  font-size: 12px; opacity: 0.45; cursor: pointer;
+  user-select: none; -webkit-user-select: none;
+}
+.dev-row { display: flex; align-items: center; gap: 10px; margin: 14px 0 0; font-size: 15px; }
+.dev-row[hidden], .btn[hidden] { display: none; }
+.dev-row input { width: 20px; height: 20px; accent-color: #f2c94c; }

@@ -97,3 +97,35 @@ export function drawStock(state) {
   for (let i = 0; i < n; i++) state.waste.push(state.stock.pop());
   return true;
 }
+
+// Compact text form of a position for bug reports (dev mode's copy button), all digits and dots:
+//   1.<draw>.<game number>.<foundation sizes>.<waste>.<stock>.<pile 1>....<pile 7>
+// Foundation sizes are two digits per suit; waste and stock are two-digit card numbers
+// (bottom first); a pile is its face-down count (one digit) then its cards bottom first.
+export function encodeState(g, gameNo = 0) {
+  const cards = (a) => a.map((c) => String(c).padStart(2, '0')).join('');
+  return [
+    1, g.drawCount, gameNo,
+    g.foundations.map((f) => String(f.length).padStart(2, '0')).join(''),
+    cards(g.waste), cards(g.stock),
+    ...g.tableau.map((p) => p.filter((x) => !x.up).length + cards(p.map((x) => x.c))),
+  ].join('.');
+}
+
+// Inverse of encodeState. Returns { game, gameNo } where game has the fields the solver uses.
+export function decodeState(str) {
+  const f = str.trim().split('.');
+  if (f[0] !== '1' || f.length !== 13) throw new Error('not a state string');
+  const cards = (s) => (s.match(/\d\d/g) || []).map(Number);
+  const sizes = cards(f[3]);
+  const game = {
+    drawCount: Number(f[1]),
+    foundations: sizes.map((n, s) => Array.from({ length: n }, (_, i) => s * 13 + i)),
+    waste: cards(f[4]), stock: cards(f[5]),
+    tableau: f.slice(6).map((p) => {
+      const down = Number(p[0] || 0);
+      return cards(p.slice(1)).map((c, i) => ({ c, up: i >= down }));
+    }),
+  };
+  return { game, gameNo: Number(f[2]) };
+}
