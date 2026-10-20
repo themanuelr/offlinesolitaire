@@ -44,6 +44,29 @@ check(s.waste.length === 3 && s.stock.length === 21, 'rewind goes back one move,
 await page.click('#btn-undo');
 await page.waitForTimeout(3200); // let the rewind message clear
 
+// New asks first when a game is in progress, and starts straight away otherwise.
+const dealOf = async () => (await g()).dealIndex;
+let before = await dealOf();
+await page.click('#btn-new');
+check(await page.locator('#confirm-new').isVisible(), 'New asks for confirmation mid-game');
+if (SHOTS) await page.screenshot({ path: `${SHOTS}/confirm-new.png` });
+await page.click('#confirm-new button[value="stay"]');
+check(await dealOf() === before && (await g()).moves > 0, 'Keep playing leaves the game as it was');
+await page.click('#btn-new');
+await page.click('#confirm-new button[value="new"]');
+await page.waitForTimeout(300);
+s = await g();
+check(s.dealIndex !== before && !s.started, 'confirming starts a new game');
+before = s.dealIndex;
+await page.click('#btn-new');
+check(await page.locator('#confirm-new').isHidden() && await dealOf() !== before, 'New on an untouched deal starts without asking');
+
+// Click New, confirming if it asks.
+async function clickNew() {
+  await page.click('#btn-new');
+  if (await page.locator('#confirm-new').isVisible()) { await page.click('#confirm-new button[value="new"]'); await page.waitForTimeout(300); }
+}
+
 // Drag a card with the mouse to a legal tableau spot, if one exists in this deal.
 async function findTableauMove() {
   return page.evaluate(() => {
@@ -57,7 +80,7 @@ async function findTableauMove() {
   });
 }
 let mv = await findTableauMove();
-for (let i = 0; i < 30 && !mv; i++) { await page.click('#btn-new'); mv = await findTableauMove(); }
+for (let i = 0; i < 30 && !mv; i++) { await clickNew(); mv = await findTableauMove(); }
 if (mv) {
   await page.waitForTimeout(400); // let the deal animation settle
   const from = await page.locator(`.card[data-card="${mv.card}"]`).boundingBox();
@@ -132,7 +155,7 @@ for (const round of [1, 2]) {
 // Dev mode: tapping the version 4 times shows the switch; turning it on adds the copy button.
 check(await page.locator('#btn-copy').isHidden(), 'copy button is hidden without dev mode');
 await page.click('#btn-menu');
-check(/^v\d+$/.test(await page.locator('#menu-version').textContent()), 'menu shows the app version');
+check(/^v\d+(\.\d+)*$/.test(await page.locator('#menu-version').textContent()), 'menu shows the app version');
 check(await page.locator('#dev-row').isHidden(), 'dev mode switch starts hidden');
 for (let i = 0; i < 4; i++) await page.click('#menu-version');
 check(await page.locator('#dev-row').isVisible(), 'four taps on the version show the dev mode switch');
@@ -166,7 +189,7 @@ await ctx.setOffline(true);
 await page.reload();
 await page.waitForFunction(() => window.__solitaire, null, { timeout: 10000 });
 check(await page.locator('.card').count() === 52, 'loads and deals with the network off');
-await page.click('#btn-new');
+await clickNew();
 await page.click('#btn-hint');
 await page.waitForSelector('.hint', { timeout: 8000 }).then(() => check(true, 'hint works offline'), () => check(false, 'hint works offline'));
 await ctx.setOffline(false);

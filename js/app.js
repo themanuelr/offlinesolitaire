@@ -712,7 +712,15 @@ function renderStats() {
   </table>`;
 }
 
-$('btn-new').onclick = () => { if (!busy) newGame(); };
+// Ask before throwing away a game in progress; a fresh or finished deal just starts a new one.
+$('btn-new').onclick = () => {
+  if (busy) return;
+  if (!game.started || game.won) return newGame();
+  const dlg = $('confirm-new');
+  dlg.returnValue = '';
+  dlg.showModal();
+  dlg.addEventListener('close', () => { if (dlg.returnValue === 'new' && !busy) newGame(); }, { once: true });
+};
 $('btn-undo').onclick = undo;
 $('btn-hint').onclick = hint;
 $('btn-menu').onclick = () => { renderMenu(); $('menu').showModal(); };
